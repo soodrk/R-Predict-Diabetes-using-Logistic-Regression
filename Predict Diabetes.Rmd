@@ -1,30 +1,64 @@
 ---
-title: "Untitled"
-author: "Radhika Sood"
-date: "February 6, 2020"
-output: html_document
+Author: GROUP PROJECT
+Title: Final project report
+output:
+  html_document:
+  code_folding: show
+  highlight: monochrome
+  theme: flatly
+  pdf_document: default
+  word_document: default
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# {.tabset .tabset-fade .tabset-pills}
+## Synopsis 
+The data was collected and made available by "National Institute of Diabetes and Digestive and Kidney Diseases. Our project focuses on factors which affect the likelihood of person getting the diabetes.
+![image](https://3n9hl3wy2ektx6nh3y3tpu15-wpengine.netdna-ssl.com/wp-content/uploads/sites/22/2019/01/diabetestest_647161.jpg)
+
+path = system.file("https://3n9hl3wy2ektx6nh3y3tpu15-wpengine.netdna-ssl.com/wp-content/uploads/sites/22/2019/01/diabetestest_647161.jpg")
+
+image = readImage(path)
+
+resiz = resizeImage(image, width = 32, height = 32, method = 'nearest')
+
+## Packages Required
+```{r}
+packages <- data.frame(Package_Name = c("library(GGally)","library(tidyr)", "library(DT)", "library(ggplot2)", "library(dplyr)","library(tidyverse)", "library(kableExtra)"),
+  
+  Function = c(
+    "GGally extends ggplot2 by adding several functions to reduce the complexity",
+    "For changing the layout of your data sets, to convert data into the tidy format", 
+    "For HTML display of data", 
+    "For customizable graphical representation",
+    "For data manipulation",
+    "Collection of R packages designed for data science that works harmoniously with other packages",
+    "To display table in a fancy way"
+  )
+)
+packages
 ```
 
-## R Markdown
+## Data Preparation
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### Data Source
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The link to original dataset can be found [here](https://www.kaggle.com/kandij/diabetes-dataset)
+```{r Importing data from URL into the table} 
+data <- read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+head(data)
+```
+### Data Cleaning 
 
-```{r cars}
-summary(cars)
+```{r Check for missing values}
+    any(is.na(data))
+    any(is.null(data))
+    ggplot(gather(data[,-9]),aes(value)) + geom_histogram() + facet_wrap(key~.,scales="free_x")
+```
+```{r Check for incorrect values}
+
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### Variable details 
+  
+## Exploratory Data Analysis
+ggpairs(data)

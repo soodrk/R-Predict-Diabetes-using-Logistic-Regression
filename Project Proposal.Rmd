@@ -1,0 +1,55 @@
+---
+title: "DAM_Final Project proposal"
+author: "Radhika Sood"
+date: "February 10, 2020"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("tidyr")
+install.packages("DT")
+install.packages("tidyverse")
+install.packages("kableExtra")
+install.packages("GGally")
+ 
+library(GGally) 
+library(tidyr)
+library(DT)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+```
+
+## In you data set, how many covariates do you have? What are they? How many observations do you have? How did you collect them?
+
+```{r Importing data from URL into the table} 
+data <- read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+head(data)
+```
+
+summary(data)
+
+The data was collected and made available by "National Institute of Diabetes and Digestive and Kidney Diseases. Our project focuses on factors which affect the likelihood of person getting the diabetes.
+
+# List of covariates
+```{r}
+  str(data)
+```
+
+The data set has 768 observations with 9 variables. The link to dataset can be found [here](https://www.kaggle.com/kandij/diabetes-dataset)
+
+# Correlation between the variables
+```{r}
+ggpairs(data)
+?pairs
+
+```
+## What kind of models are you using? What techniques are you using?
+For this project, we have decided to go ahead with logistic regression algorithm to predict if the person will suffer from diabetes. This algorithm will help us build our classification model. 
+
+## What are the potential problems/issues in your model? For example, skewness, nonnormality, nonlinearity, multicollinearity, heteroscedasticity, dummy variables, outliers and/or the data simply has very weak signal?
+
+## What kind of remedies are you proposing to use to solve the potential issues?
+
