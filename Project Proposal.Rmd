@@ -25,29 +25,36 @@ library(kableExtra)
 ## In you data set, how many covariates do you have? What are they? How many observations do you have? How did you collect them?
 
 ```{r Importing data from URL into the table} 
-data <- read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+data <- read.csv("D:/Documents/GitHub/DAM_project/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
 head(data)
+nrow(data)
+ncol(data)
+
 ```
 
 summary(data)
 
+There are 9 columns in the dataset, within those columns we have 8 covariates and 1 response variable 'Outcome'. 
+The total of observation number is 768.
 The data was collected and made available by "National Institute of Diabetes and Digestive and Kidney Diseases. Our project focuses on factors which affect the likelihood of person getting the diabetes.
 
 # List of covariates
 ```{r}
   str(data)
+names(data)
 ```
 
 The data set has 768 observations with 9 variables. The link to dataset can be found [here](https://www.kaggle.com/kandij/diabetes-dataset)
-
+ 
 # Correlation between the variables
 ```{r}
 ggpairs(data)
-?pairs
+pairs(data)
 
 ```
 ## What kind of models are you using? What techniques are you using?
-For this project, we have decided to go ahead with logistic regression algorithm to predict if the person will suffer from diabetes. This algorithm will help us build our classification model. 
+For this project, we have decided to go ahead with logistic regression algorithm to predict if the person will suffer from diabetes. This algorithm will help us build our classification model. With the data we have binary response variable 'Outcome' values 1 and 0 which can represent “success” and “failure”. This module is offen used for biopharmaceutical field, clinical trials. 
+After decide on choosing the type of model, we will fit logistic regression to data and interpret the output and make prediction. 
 
 ## What are the potential problems/issues in your model? For example, skewness, nonnormality, nonlinearity, multicollinearity, heteroscedasticity, dummy variables, outliers and/or the data simply has very weak signal?
 
