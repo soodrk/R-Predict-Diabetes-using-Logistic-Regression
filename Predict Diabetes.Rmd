@@ -1,6 +1,6 @@
 ---
-Author: GROUP 3
-Title: Final project report
+title: <center>Predict Diabetes </center> 
+author:  <center>Huynh | Ravindra | Sood | Swamykannu </center>
 output:
   html_document:
   code_folding: show
@@ -11,6 +11,7 @@ output:
 ---
 
 # {.tabset .tabset-fade .tabset-pills}
+
 ## Synopsis 
 The data was collected and made available by "National Institute of Diabetes and Digestive and Kidney Diseases. Our project focuses on factors which affect the likelihood of person getting the diabetes.
 ![image](https://3n9hl3wy2ektx6nh3y3tpu15-wpengine.netdna-ssl.com/wp-content/uploads/sites/22/2019/01/diabetestest_647161.jpg)
@@ -19,6 +20,12 @@ The data was collected and made available by "National Institute of Diabetes and
 ```{r List of packages used for the project}
 library(readxl)
 library(kableExtra)
+library(corrplot)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(tidyr)
+library(DT)
 packages <- read_excel("C:/Users/Radhika Sood/Documents/DAM_project/Packages.xlsx")
 kable(packages)%>%
 kable_styling( bootstrap_options = c("striped", "responsive"))
@@ -104,12 +111,10 @@ summary(data)
 ## Exploratory Data Analysis
 ### Check correlation between the variables 
 ```{r}
-library(corrplot)
-library(dplyr)
-library(ggplot2)
+
 pairs(data)
 corrplot(cor(data[,-10]),type = "lower", method="number")
-#ggplot(gather(data[,-9]),aes(value)) + geom_histogram() + facet_wrap(key~.,scales="free_x")
+ggplot(gather(data[,-9]),aes(value)) + geom_histogram() + facet_wrap(key~.,scales="free_x")
 ```
 We can see the range of values for each variable, where most of the values are scattered.
 
@@ -124,7 +129,7 @@ Scatterplot and Boxplot between the variables
 
 ```{r}
 
-ggplot(data, aes(x= as.factor(Outcome), y= Pregnancies)) + geom_boxplot() + ylab("Pregnancies") + facet_grid("BMI")
+ggplot(data, aes(x= as.factor(Insulin), y= BMI)) + geom_boxplot() + ylab("Pregnancies") + facet_grid("as.factor(Outcome)~.")
 ggplot(data, aes(y= Insulin)) + geom_boxplot() + xlab("Insulin")
 ggplot(data, aes(y= Glucose)) + geom_boxplot() + xlab("Glucose")
 ggplot(data, aes(y= Glucose)) + geom_boxplot() + xlab("Age")
@@ -159,7 +164,7 @@ Claire- discuss p-value and tell why Pregnancies, Glucose, Blood Pressure, Insul
 
 
 
-## Residual Analysis and Transformations
+## Residual Analysis
 
 ## Model Validation
 
