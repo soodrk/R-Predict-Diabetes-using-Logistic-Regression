@@ -128,12 +128,11 @@ As we can see, from the corrplot, there is significant correlation between the O
 Scatterplot and Boxplot between the variables
 
 ```{r}
+ggplot(data, aes(x= Outcome, y= Pregnancies, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+ggplot(data, aes(x= Outcome, y= Insulin, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+ggplot(data, aes(x= Outcome, y= Glucose, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
 
-ggplot(data, aes(x= as.factor(Insulin), y= BMI)) + geom_boxplot() + ylab("Pregnancies") + facet_grid("as.factor(Outcome)~.")
-ggplot(data, aes(y= Insulin)) + geom_boxplot() + xlab("Insulin")
-ggplot(data, aes(y= Glucose)) + geom_boxplot() + xlab("Glucose")
-ggplot(data, aes(y= Glucose)) + geom_boxplot() + xlab("Age")
-
+ggplot(data, aes(x= Outcome, y= BMI, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
 ```
 
 plot(data$outcome,data$pregnancies)
