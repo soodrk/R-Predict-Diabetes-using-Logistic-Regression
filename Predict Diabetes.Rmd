@@ -26,7 +26,9 @@ library(ggplot2)
 library(GGally)
 library(tidyr)
 library(DT)
-packages <- read_excel("C:/Users/Radhika Sood/Documents/DAM_project/Packages.xlsx")
+library(gridExtra)
+library(ROCR)
+packages <- read_excel("D:/Documents/GitHub/DAM_project2/Packages.xlsx")
 kable(packages)%>%
 kable_styling( bootstrap_options = c("striped", "responsive"))
 
@@ -37,129 +39,253 @@ kable_styling( bootstrap_options = c("striped", "responsive"))
 ### Data Source
 
 The link to original dataset can be found [here](https://www.kaggle.com/kandij/diabetes-dataset)
-This dataset contains 768 rows.
+This dataset contains 768 rows and 9 columns.  
 ```{r Importing data from URL into the table} 
-data <- read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+data <- read.csv("D:/Documents/GitHub/DAM_project2/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
 head(data)
+nrow(data)
+ncol(data)
+colnames(data)
 ```
-Some important variables which we will use for analysis are:
-names(data)
+We can understand more about the structure of the dataset by using the str() function.
 
-###Data Cleaning 
+```{r}
+str(data)
+```
+These 8 variables are indicators taken to consideration of getting diabietes. The 'Outcome' is a response variable stated whether a person has diabetes or not by showing "0" for NO and "1" for Yes.
 
+### Data Cleaning 
+
+Checking for missing value and NULL value in the given dataset is one of the crucial steps in data cleaning 
 ```{r Check for missing values}
     any(is.na(data))
     any(is.null(data))
     
 ```
+The result is False so we do not have to worry about the missing values and NULL value might affects building our model later on.
+Next step, we have to search for dupplicated records in the data set.
 ```{r Check for duplicate values}
 duplicate_value <- data[duplicated(data),]
 head(unique(data))
 
 sapply(data, function(x) length(unique(x)))
 ```
-Using duplicate function, we can find the duplicate values in the row. It returns FALSE for each row indicating no duplicates. We verified it by using the Unique() function, the unique function returns the nuique rows in the dataset. We get 768 rows. Thus, we have no duplicate values in the data.
- 
- 
-All living organisms dont have zero blood pressure. We need to replace the rows with zero blood pressure with the mean values of the blood pressure.  
+Using duplicate function, we can find the duplicate values in the row. It returns FALSE for each row indicating no duplicates. We verified it by using the Unique() function, the unique function returns the unique rows in the dataset. We get 768 rows. Thus, we have no duplicate values in the data.
+
+The next thing we need to look for is the outliers of each variable.
+```{r}
+a <- ggplot(data, aes(x= Outcome, y= Pregnancies, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+b<- ggplot(data, aes(x= Outcome, y= Glucose, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+c<- ggplot(data, aes(x= Outcome, y= BloodPressure , fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+d<- ggplot(data, aes(x= Outcome, y= SkinThickness , fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+e<- ggplot(data, aes(x= Outcome, y= Insulin, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+f<- ggplot(data, aes(x= Outcome, y= BMI, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+g<- ggplot(data, aes(x= Outcome, y= DiabetesPedigreeFunction, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+h<- ggplot(data, aes(x= Outcome, y= Age, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+grid.arrange(a,b,c,d,e,f,g,h, ncol=4)
+```
+
+We can see that women with non diabetes (outcome =0) has fewer number of pregnancies compared to the diabetes group and is skew to the right. The diabetes women group have higher Glucose concentration. The two group have quite similar blood pressure measurement. There are many outliers in Insulin from both women groups, especially women with diabetes is heavily skewed to the right. Women with diabetes have slightly higher BMI than the other.The pedigree function distribution in both groups have outliers and have positive skew.The average age of women in diabetes group seems older than women in non diabetes group. 
+
+In reality, living organisms can't have zero value for their blood pressure. We will check if there how many rows that contains 0 value in Blood Pressure.
+```{r}
+sum(data$BloodPressure==0)
+```
+With fasting glucose levels would not be as low as zero. Therefore zero is an invalid reading. We will check if there how many rows that contains 0 value in Glucose.
+```{r}
+sum(data$Glucose==0)
+```
+For normal people, skin fold thickness can’t be less than 10 mm better yet zero. We will check if there how many rows that contains 0 value.
+```{r}
+sum(data$SkinThickness==0)
+```
+So a fasting insulin level should never be 0, which it might be in a person with untreated Type 1. It shouldn’t go below 3. We will check if there how many rows that contains 0 value.
+```{r}
+sum(data$Insulin==0)
+```
+BMI can't be or close to 0 cause it is not reality related. We will check if there how many rows that contains 0 value.
+```{r}
+sum(data$BMI==0)
+```
+With the domain knowledge checking, we found invalid values in some columns. We conclude that the given data set is imcomplete. This leads to our group decision to use imputation to make the data set more relevant and reasonable. 
+We should replace the rows contained zero value in blood pressure, glucose, skin thickness, insulin and BMI variables with the median value to keep the our dataset logically.
 ```{r Check for incorrect values and replace with relevant values}
 # People with no diabetes an zero blood pressure values
+
 non_diabetic <- which(data$BloodPressure==0 & data$Outcome==0)
-temp_mean <- mean(data$BloodPressure[!data$BloodPressure==0 & data$Outcome==0])
-data$BloodPressure[non_diabetic] <- temp_mean
+temp_median <- median(data$BloodPressure[!data$BloodPressure==0 & data$Outcome==0])
+data$BloodPressure[non_diabetic] <- temp_median
+temp_median
 
 # People with diabetes an zero blood pressure values
 diabetic <- which(data$BloodPressure==0 & data$Outcome==1)
-data$BloodPressure[diabetic] <- mean(data$BloodPressure[!data$BloodPressure==0 & data$Outcome==1])
+data$BloodPressure[diabetic] <- median(data$BloodPressure[!data$BloodPressure==0 & data$Outcome==1])
 
 # People with no diabetes an zero Glucose values
 non_diabetic <- which(data$Glucose==0 & data$Outcome==0)
-data$Glucose[non_diabetic] <- mean(data$Glucose[!data$Glucose==0 & data$Outcome==0])
+data$Glucose[non_diabetic] <- median(data$Glucose[!data$Glucose==0 & data$Outcome==0])
 
 # People with diabetes an zero Glucose values
 diabetic <- which(data$Glucose==0 & data$Outcome==1)
-data$Glucose[diabetic] <- mean(data$Glucose[!data$Glucose==0 & data$Outcome==1])
+data$Glucose[diabetic] <- median(data$Glucose[!data$Glucose==0 & data$Outcome==1])
 
 # People with no diabetes an zero Skin Thickness values
 non_diabetic <- which(data$SkinThickness==0 & data$Outcome==0)
-data$SkinThickness[non_diabetic] <- mean(data$SkinThickness[!data$SkinThickness==0 & data$Outcome==0])
+data$SkinThickness[non_diabetic] <- median(data$SkinThickness[!data$SkinThickness==0 & data$Outcome==0])
 
 # People with diabetes an zero Skin Thickness values
 diabetic <- which(data$SkinThickness==0 & data$Outcome==1)
-data$SkinThickness[diabetic] <- mean(data$SkinThickness[!data$SkinThickness==0 & data$Outcome==1])
+data$SkinThickness[diabetic] <- median(data$SkinThickness[!data$SkinThickness==0 & data$Outcome==1])
 
 # People with no diabetes an zero Insulin values
 non_diabetic <- which(data$Insulin==0 & data$Outcome==0)
-data$Insulin[non_diabetic] <- mean(data$Insulin[!data$Insulin==0 & data$Outcome==0])
+data$Insulin[non_diabetic] <- median(data$Insulin[!data$Insulin==0 & data$Outcome==0])
 
 # People with diabetes an zero Insulin values
 diabetic <- which(data$Insulin==0 & data$Outcome==1)
-data$Insulin[diabetic] <- mean(data$Insulin[!data$Insulin==0 & data$Outcome==1])
+data$Insulin[diabetic] <- median(data$Insulin[!data$Insulin==0 & data$Outcome==1])
 
 # People with no diabetes an zero BMI values
 non_diabetic <- which(data$BMI==0 & data$Outcome==0)
-data$BMI[non_diabetic] <- mean(data$BMI[!data$BMI==0 & data$Outcome==0])
+data$BMI[non_diabetic] <- median(data$BMI[!data$BMI==0 & data$Outcome==0])
 
 # People with diabetes an zero BMI values
 diabetic <- which(data$BMI==0 & data$Outcome==1)
-data$BMI[diabetic] <- mean(data$BMI[!data$BMI==0 & data$Outcome==1])
+data$BMI[diabetic] <- median(data$BMI[!data$BMI==0 & data$Outcome==1])
 
 summary(data)
 ```
-### Variable details 
+
   
 ## Exploratory Data Analysis
 ### Check correlation between the variables 
 ```{r}
-
-pairs(data)
+pairs(data,pch=20)
 corrplot(cor(data[,-10]),type = "lower", method="number")
 ggplot(gather(data[,-9]),aes(value)) + geom_histogram() + facet_wrap(key~.,scales="free_x")
 ```
-We can see the range of values for each variable, where most of the values are scattered.
 
-Claire- Can you add findings from the above graph? write shor description about each variable. Left skewed? Normal distribution ?values are in this range etc.?
+By looking at the scatterplot mattrices, we can make an assumption that the data dots in Skin Thickness might have correlation with BMI. The coefficient in the correlation plot shows 0.57 between BMI and Skin Thickness which means there is a moderate positive relationship. It also shows correlation coefficient of 0.54 between age and pregnancies and 0.49 between Insulin and Glucose. These coefficient measures the strength and direction of a linear relationship between two variables. However, these coefficents we are getting from the scatterplot is not strong enough to assure that their are a significant relationship among the covariates. So we can do further analysis without dropping any columns.
 
-Claire - Describe: High correlation between which varibales?
-
-As we can see, from the corrplot, there is significant correlation between the Outcome and Glucose, Insulin.
-
-
-Scatterplot and Boxplot between the variables
-
-```{r}
-ggplot(data, aes(x= Outcome, y= Pregnancies, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
-ggplot(data, aes(x= Outcome, y= Insulin, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
-ggplot(data, aes(x= Outcome, y= Glucose, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
-
-ggplot(data, aes(x= Outcome, y= BMI, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
-```
-
-plot(data$outcome,data$pregnancies)
+From the ggplot function we can visualize the distribution in each reagressor. BloodPressure and BMI plotS seems to follow a normal distribution. Pregnancies, Age, Insulin and Diebetes Pedigree Function are skewed to the right.
 
 ## Model
+### Fit logistic regression to the data
+
+```{r}
+model1 = glm(Outcome ~ ., data, family = "binomial")
+summary(model1)
+```
+
+
 Preparing the Test and Train data
+Splitting the dataset into Train and Test data into 70% and 30% respectively.
 ```{r}
 set.seed(123)
 n <- nrow(data)
-train <- sample(n, trunc(0.70*n))
+train <- sample(n, trunc(0.80*n))
 training_data <- data[train, ]
 testing_data<- data[-train, ]
 ```
 
+Total number of Train data rows
+```{r}
+nrow(training_data)
+```
 
-Creating the Model usong Logistic Regression
-Model uing all the covariates
+Total number of Test data rows
+```{r}
+nrow(testing_data)
+```
+
+Model Fitting
+Fitting model using all the independent variables.
 ```{r}
 estimated_model <- glm(Outcome~.,training_data,family="binomial")
 summary(estimated_model)
 ```
+
+Here we have fitted our model based on Train data. By looking at the p-value of each covariate's coefficent, we can understand the  significant correlation relationship that each of them have with the response variable. The coefficents of variable Pregnanacies, Glucose and BMI have p-values smaller than 0.05. These covariates poses a significant linear relationship with the outcome. The other regressors such as Blood Pressure and Pedigree also play an important part in the model. Their correlated coefficients are 0.022281 and 0.015010 respectively. This indicates there is a strong relationship with the response variable. The other varibles that have p-value bigger than 0.05 should not be included in the final model since they don't have any correlation with the predicted outcome. 
+
+As we interpret estimated coefficent of our significant covariates, we come up with the conclusion:
+when a person have pregnancy, increasing Glucose, BMI and Pedigree will likely have diabetes.
+When the bloodpressure decreases, a person is likely to have diabetes.
+
+The model will look like:
+
+Outcome = -8.213 + 0.118* x1 + 0.35* x2 - 0.013* x3 + 0.086* x4 + 0.781* x5
+
+
+Predicting Outcome on Training dataset
 ```{r}
+Predict <- predict (estimated_model,type="response")
+summary(Predict)
+```
+
+The average prediction of each outcome
+
+```{r}
+tapply(Predict,training_data$Outcome,mean)
+```
+
+Generating ROC curve on train data
+```{r}
+ROC_pre <- prediction(Predict, training_data$Outcome)
+ROC_per <- performance(ROC_pre,"tpr","fpr")
+plot(ROC_per,print.cutoffs.at= seq(0,1,0.1), text.adj=c(-0.2,1.7))
+abline(a=0,b=1)
+# Generate AUC curve
+AUC <- round(as.numeric(performance(ROC_pre,"auc")@y.values),2)
+legend(.9,.2,AUC, title="AUC", cex=1)
+```
+
+We have an accuracy rate of 82% on our Train data.
+
+Making predictions on our Test Data
+```{r}
+pred_test <- predict(estimated_model,type = "response",newdata = testing_data)
+pred_value <- table(testing_data$Outcome, pred_test>0.5)
+pred_value
+```
+
+Check the accuracy of the test dataset
+
+```{r}
+Pred_accur <- round(sum(diag(pred_value))/sum(pred_value),2)
+Pred_accur
+```
+
+We have 75% accuracy on prediction in the test dataset. 
+
+Improve model to increase accuracy
+
+```{r}
+ROC_pretest <- prediction(pred_test, testing_data$Outcome)
+ROC_pertest <- performance(ROC_pretest,"tpr","fpr")
+plot(ROC_per,print.cutoffs.at= seq(0,1,0.1), text.adj=c(-0.2,1.7))
+abline(a=0,b=1)
+# Generate AUC curve
+AUC1 <- round(as.numeric(performance(ROC_pretest,"auc")@y.values),2)
+legend(.9,.2,AUC1, title="AUC1", cex=1)
+```
+
+Check the accuracy of the test dataset
+
+```{r}
+AUC1 <- round(as.numeric(performance(ROC_pretest,"auc")@y.values),2)
+AUC1
+```
+
+
+
+
+```{r}
+#Not sure about this 
 estimated_model <- update(estimated_model, ~. - SkinThickness - BloodPressure - Age - DiabetesPedigreeFunction)
 summary(estimated_model)
 ```
 
-Claire- discuss p-value and tell why Pregnancies, Glucose, Blood Pressure, Insulin, BMI are highly significant covariates.
+
 
 
 
