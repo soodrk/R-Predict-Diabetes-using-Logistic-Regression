@@ -17,7 +17,7 @@ The data was collected and made available by "National Institute of Diabetes and
 ![image](https://3n9hl3wy2ektx6nh3y3tpu15-wpengine.netdna-ssl.com/wp-content/uploads/sites/22/2019/01/diabetestest_647161.jpg)
 
 ## Packages Required
-```{r List of packages used for the project}
+```{r List of packages used for the project, ECHO= False}
 library(readxl)
 library(kableExtra)
 library(corrplot)
@@ -28,7 +28,8 @@ library(tidyr)
 library(DT)
 library(gridExtra)
 library(ROCR)
-packages <- read_excel("D:/Documents/GitHub/DAM_project2/Packages.xlsx")
+library(leaps)
+packages <- read_excel("C:/Users/Radhika Sood/Documents/DAM_project/Packages.xlsx")
 kable(packages)%>%
 kable_styling( bootstrap_options = c("striped", "responsive"))
 
@@ -41,8 +42,7 @@ kable_styling( bootstrap_options = c("striped", "responsive"))
 The link to original dataset can be found [here](https://www.kaggle.com/kandij/diabetes-dataset)
 This dataset contains 768 rows and 9 columns.  
 ```{r Importing data from URL into the table} 
-data <- read.csv("D:/Documents/GitHub/DAM_project2/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
-head(data)
+data <- read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
 nrow(data)
 ncol(data)
 colnames(data)
@@ -84,6 +84,8 @@ g<- ggplot(data, aes(x= Outcome, y= DiabetesPedigreeFunction, fill = factor(Outc
 h<- ggplot(data, aes(x= Outcome, y= Age, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
 grid.arrange(a,b,c,d,e,f,g,h, ncol=4)
 ```
+
+
 
 We can see that women with non diabetes (outcome =0) has fewer number of pregnancies compared to the diabetes group and is skew to the right. The diabetes women group have higher Glucose concentration. The two group have quite similar blood pressure measurement. There are many outliers in Insulin from both women groups, especially women with diabetes is heavily skewed to the right. Women with diabetes have slightly higher BMI than the other.The pedigree function distribution in both groups have outliers and have positive skew.The average age of women in diabetes group seems older than women in non diabetes group. 
 
@@ -165,131 +167,187 @@ corrplot(cor(data[,-10]),type = "lower", method="number")
 ggplot(gather(data[,-9]),aes(value)) + geom_histogram() + facet_wrap(key~.,scales="free_x")
 ```
 
-By looking at the scatterplot mattrices, we can make an assumption that the data dots in Skin Thickness might have correlation with BMI. The coefficient in the correlation plot shows 0.57 between BMI and Skin Thickness which means there is a moderate positive relationship. It also shows correlation coefficient of 0.54 between age and pregnancies and 0.49 between Insulin and Glucose. These coefficient measures the strength and direction of a linear relationship between two variables. However, these coefficents we are getting from the scatterplot is not strong enough to assure that their are a significant relationship among the covariates. So we can do further analysis without dropping any columns.
+By looking at the correlation mattrices, we can see that the data dots in Skin Thickness might have correlation with BMI. The coefficient in the correlation plot shows 0.57 between BMI and Skin Thickness which means there is a moderate positive relationship. It also shows correlation coefficient of 0.54 between age and pregnancies and 0.49 between Insulin and Glucose. These coefficient measures the strength and direction of a linear relationship between two variables. However, these coefficents we are getting from the scatterplot is not strong enough to assure that their are a significant relationship among the covariates. So we can do further analysis without dropping any columns.
 
-From the ggplot function we can visualize the distribution in each reagressor. BloodPressure and BMI plotS seems to follow a normal distribution. Pregnancies, Age, Insulin and Diebetes Pedigree Function are skewed to the right.
+From the histogram, we can visualize the distribution in each regressor. BloodPressure and BMI plots seem to follow a normal distribution. Pregnancies, Age, Insulin and Diebetes Pedigree Function are skewed to the right.
 
-## Model
-### Fit logistic regression to the data
+## Variable Selection and final Model 
+
+### Fitting the model using all variables 
+```{r}
+# Building model with all variables
+model = glm(Outcome ~ .,data,family="binomial")
+summary(model)
+```
 
 ```{r}
-model1 = glm(Outcome ~ ., data, family = "binomial")
+# Selecting significant variables based on p-value
+model1 = glm(Outcome ~ .-BloodPressure-Age,data,family="binomial")
 summary(model1)
 ```
 
-
-Preparing the Test and Train data
-Splitting the dataset into Train and Test data into 70% and 30% respectively.
+### Selecting using BIC value
 ```{r}
-set.seed(123)
-n <- nrow(data)
-train <- sample(n, trunc(0.80*n))
-training_data <- data[train, ]
-testing_data<- data[-train, ]
+
+subset_result <- regsubsets(Outcome~.,data, nbest=2, nvmax = 14)
+summary(subset_result)
+plot(subset_result, scale="bic")
+
+# Model based on BIC
+model2 = glm(Outcome~.-BloodPressure-SkinThickness-Age,data=data,family="binomial")
+summary(model2)
 ```
 
-Total number of Train data rows
+
+
+### Using backward selection
 ```{r}
-nrow(training_data)
+fullmodel=lm(Outcome~., data=data)
+model_step_b <- step(fullmodel,direction='backward')
+
+# Variables based on least AIC
+model3 = glm(Outcome ~ Pregnancies + Glucose + SkinThickness + Insulin + BMI + 
+               DiabetesPedigreeFunction,data,family="binomial")
+summary(model3)
 ```
 
-Total number of Test data rows
+
+### Selecting the final model based on least AIC amongst the above three model.
 ```{r}
-nrow(testing_data)
+final_model = glm(Outcome ~ .-BloodPressure-Age,data,family="binomial")
+summary(final_model)
 ```
 
-Model Fitting
-Fitting model using all the independent variables.
-```{r}
-estimated_model <- glm(Outcome~.,training_data,family="binomial")
-summary(estimated_model)
-```
-
-Here we have fitted our model based on Train data. By looking at the p-value of each covariate's coefficent, we can understand the  significant correlation relationship that each of them have with the response variable. The coefficents of variable Pregnanacies, Glucose and BMI have p-values smaller than 0.05. These covariates poses a significant linear relationship with the outcome. The other regressors such as Blood Pressure and Pedigree also play an important part in the model. Their correlated coefficients are 0.022281 and 0.015010 respectively. This indicates there is a strong relationship with the response variable. The other varibles that have p-value bigger than 0.05 should not be included in the final model since they don't have any correlation with the predicted outcome. 
-
-As we interpret estimated coefficent of our significant covariates, we come up with the conclusion:
-when a person have pregnancy, increasing Glucose, BMI and Pedigree will likely have diabetes.
-When the bloodpressure decreases, a person is likely to have diabetes.
+As we interpret estimated coefficent of our significant covariates, we come up with the conclusion that when a person have pregnancy, increasing Glucose, Insulin, BMI,DiabetesPedigreeFunction  and Skin Thickness will likely have diabetes.
 
 The model will look like:
 
-Outcome = -8.213 + 0.118* x1 + 0.35* x2 - 0.013* x3 + 0.086* x4 + 0.781* x5
+Outcome = -9.22 + 0.13* Pregnancies + 0.03* Glucose + 0.04* SkinThickness + 0.005* Insulin + 0.05* BMI + 0.80*DiabetesPedigreeFunction
 
+To evaluate the prediction performance on all the observed data
 
-Predicting Outcome on Training dataset
 ```{r}
-Predict <- predict (estimated_model,type="response")
-summary(Predict)
+d = data
+pred_prob = predict(final_model, data, type = "response")
+pred_value = 1*(pred_prob>0.5)
+c=cbind(d, pred_prob, pred_value)
 ```
 
-The average prediction of each outcome
+We can obtain the confusion matrix as follows.
 
 ```{r}
-tapply(Predict,training_data$Outcome,mean)
+actual_value=d$Outcome
+confusion_matrix=table(actual_value,pred_value)
+confusion_matrix
 ```
 
-Generating ROC curve on train data
+We can further obtain the misclassification error rate as follows.
+
 ```{r}
-ROC_pre <- prediction(Predict, training_data$Outcome)
-ROC_per <- performance(ROC_pre,"tpr","fpr")
-plot(ROC_per,print.cutoffs.at= seq(0,1,0.1), text.adj=c(-0.2,1.7))
-abline(a=0,b=1)
-# Generate AUC curve
-AUC <- round(as.numeric(performance(ROC_pre,"auc")@y.values),2)
-legend(.9,.2,AUC, title="AUC", cex=1)
+misclassification_error_rate=1-sum(diag(confusion_matrix))/sum(confusion_matrix)
+misclassification_error_rate
 ```
 
-We have an accuracy rate of 82% on our Train data.
-
-Making predictions on our Test Data
+To check if 0.5 is a good p-cut value.
 ```{r}
-pred_test <- predict(estimated_model,type = "response",newdata = testing_data)
-pred_value <- table(testing_data$Outcome, pred_test>0.5)
-pred_value
-```
+# define a cost function with input "obs" being observed response 
+# and "pi" being predicted probability, and "pcut" being the threshold.
+costfunc = function(obs, pred.p, pcut){
+    weight1 = 1   # define the weight for "true=1 but pred=0" (FN)
+    weight0 = 1    # define the weight for "true=0 but pred=1" (FP)
+    c1 = (obs==1)&(pred.p<pcut)    # count for "true=1 but pred=0"   (FN)
+    c0 = (obs==0)&(pred.p>=pcut)   # count for "true=0 but pred=1"   (FP)
+    cost = mean(weight1*c1 + weight0*c0)  # misclassification with weight
+    return(cost) # you have to return to a value when you write R functions
+} # end of the function
 
-Check the accuracy of the test dataset
+# define a sequence from 0.01 to 1 by 0.01
+p.seq = seq(0.01, 1, 0.01) 
 
-```{r}
-Pred_accur <- round(sum(diag(pred_value))/sum(pred_value),2)
-Pred_accur
-```
+mean_error = rep(0, length(p.seq))  
+for(i in 1:length(p.seq)){ 
+    mean_error[i] = costfunc(obs = d$Outcome, pred.p = pred_prob, pcut = p.seq[i])  
+} # end of the loop
 
-We have 75% accuracy on prediction in the test dataset. 
-
-Improve model to increase accuracy
-
-```{r}
-ROC_pretest <- prediction(pred_test, testing_data$Outcome)
-ROC_pertest <- performance(ROC_pretest,"tpr","fpr")
-plot(ROC_per,print.cutoffs.at= seq(0,1,0.1), text.adj=c(-0.2,1.7))
-abline(a=0,b=1)
-# Generate AUC curve
-AUC1 <- round(as.numeric(performance(ROC_pretest,"auc")@y.values),2)
-legend(.9,.2,AUC1, title="AUC1", cex=1)
-```
-
-Check the accuracy of the test dataset
-
-```{r}
-AUC1 <- round(as.numeric(performance(ROC_pretest,"auc")@y.values),2)
-AUC1
+# draw a plot with X axis being all pcut and Y axis being associated cost
+plot(p.seq, mean_error)
 ```
 
 
-
-
+Let’s confirm when p-cut is 0.5, we get the previous mean error:
 ```{r}
-#Not sure about this 
-estimated_model <- update(estimated_model, ~. - SkinThickness - BloodPressure - Age - DiabetesPedigreeFunction)
-summary(estimated_model)
+mean_error[which(p.seq==0.5)]
+```
+
+What’s the best p-cut and lowest mean error we can get?
+```{r}
+optimal.pcut = p.seq[which(mean_error==min(mean_error))]
+optimal.pcut
+min(mean_error)
+```
+
+Thus, let's use 0.35 as new p-cut value and check the misclassification error.
+```{r}
+pred_prob = predict(final_model, d, type = "response")
+pred_value = 1*(pred_prob>0.35)
+c=cbind(d, pred_prob, pred_value)
 ```
 
 
+```{r}
+actual_value=d$Outcome
+confusion_matrix=table(actual_value,pred_value)
+confusion_matrix
+```
 
+```{r}
+misclassification_error_rate=1-sum(diag(confusion_matrix))/sum(confusion_matrix)
+misclassification_error_rate
+```
+
+Therefore,
+
+
+The final model will look like:
+
+Outcome = -9.22 + 0.13* Pregnancies + 0.03* Glucose + 0.04* SkinThickness + 0.005* Insulin + 0.05* BMI + 0.80*DiabetesPedigreeFunction
+
+and we use p-cut of 0.35 which gives the misclassification error rate of 0.2005.
 
 
 ## Residual Analysis
+### Let's do the residual analysis to check if our assumptions are met.
+```{r}
+final_model = glm(Outcome ~ .-BloodPressure-Age,data,family="binomial")
+par(mfrow=c(1,2))
+qqnorm(final_model$residuals,main="model1")
+qqline(final_model$residuals)
+
+plot(final_model$fitted.values,final_model$residuals,pch=20)
+abline(h=0,col="grey")
+```
+
+As we can see, it's violating our assumptions of Normality and Equal variance.
+
+Let's do some transformations to meet these assumptions.
+```{r}
+final_model = glm(Outcome ~ sqrt(Pregnancies+Glucose+SkinThickness+Insulin+BMI+DiabetesPedigreeFunction),data,family="binomial")
+```
+
+Will do the residual analysis again.
+
+```{r}
+par(mfrow=c(1,2))
+# generate QQ plot
+qqnorm(final_model$residuals,main="model1")
+qqline(final_model$residuals)
+
+plot(final_model$fitted.values,final_model$residuals,pch=20)
+abline(h=0,col="grey")
+```
+
+As we can see in the above plots, the assumption of equal variance is met. Though the Normality assumption is not completely met, we still proceed further for model validation as we have huge number of observations which would compensate for non linearity.
+
 
 ## Model Validation
 
