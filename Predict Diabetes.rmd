@@ -1,0 +1,531 @@
+---
+title: <center> Diabetes Prediction Using Logistic Regression </center> 
+author:  <center>Huynh | Ravindra | Sood | Swamykannu </center>
+output:
+  html_document:
+  code_folding: show
+  highlight: monochrome
+  theme: flatly
+  pdf_document: default
+  word_document: default
+---
+
+# {.tabset .tabset-fade .tabset-pills}
+
+## Team Members
+
+#### Rekha Raj Ravindra  
+#### Huong Huynh  
+#### Radhika Sood
+#### Prathiba Swamykannu
+
+## Synopsis 
+
+<font size ="4">
+The goal of this project is to build a logistic regression model that would predict the likelihood of diabetes.
+The dataset was collected and publicly shared by *"National Institute of Diabetes and Digestive and Kidney Diseases"*.The link to original dataset can be found [here](https://www.kaggle.com/kandij/diabetes-dataset). The objective of the dataset is to diagnostically predict whether or not a patient has diabetes, based on certain diagnostic measurements included in the dataset. We will start the analysis from basic data cleaning steps such as looking for missing values, duplicate records and identifying for outliers in each covariate. Next, we will compare the correlation between the variables themselves following with the model variable selections. In order to select the best covariates for the model we proceed selection based on the p-value, BIC plotting and backward selection method. The model with the lowest AIC number will be selected for the final model building. Next, we will do residual analysis and transformation. Lastly, model validation is performed by splitting the dataset into training and testing sample size then we measure the model accuracy in each subset. ROC is used in validating the model's diagnostic ability. Based on our AUC we will finalize the accuracy level of our model.
+
+Our final model is given as: 
+
+
+<center> Outcome = -9.22 + 0.13* Pregnancies + 0.03* Glucose + 0.04* SkinThickness + 0.005* Insulin + 0.05* BMI + 0.80* DiabetesPedigreeFunction 
+</font>
+</br>
+</br>
+</br>
+![image](https://3n9hl3wy2ektx6nh3y3tpu15-wpengine.netdna-ssl.com/wp-content/uploads/sites/22/2019/01/diabetestest_647161.jpg)
+</center>
+
+## Packages Required
+```{r List of packages used for the project, include=FALSE}
+library(readxl)
+library(kableExtra)
+library(corrplot)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(tidyr)
+library(DT)
+library(gridExtra)
+library(ROCR)
+library(leaps)
+library(PRROC)
+library(boot)
+packages <- read_excel("C:/Users/Radhika Sood/Documents/DAM_project/Packages.xlsx")
+
+```
+```{r echo=FALSE}
+kable(packages)%>%
+kable_styling( bootstrap_options = c("striped", "responsive"))
+```
+
+The above packages were installed and used in this project.
+
+
+## Data Preparation
+
+### Data Source
+
+The dataset contains 768 rows and 9 columns. These columns's label are listed below.
+```{r Importing data from URL into the table, echo=FALSE}
+data <- read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+
+nrow(data)
+ncol(data)
+colnames(data)
+```
+We can understand more about the structure of the dataset by using the str() function.
+
+```{r echo=FALSE}
+str(data)
+```
+There are 8 variables are taken as indicators in the dataset. The variable *Outcome* is a response stated whether or not a person has diabetes by showing the result value as  **0** for *NO* and **1** for *Yes*.
+
+### Data Cleaning 
+
+Checking for missing value and NULL value in the given dataset is one of the crucial steps in data cleaning 
+```{r Check for missing values}
+    any(is.na(data))
+    any(is.null(data))
+    
+```
+The results are *False* indicating that our dataset does not contain neither missing value nor NULL value. So we can do further analysis
+</br>
+Next step, we will look for dupplicated records in the dataset.
+```{r Check whether only unique values are present, echo=TRUE}
+df<-unique(data)
+dim(df)[1]
+```
+Using unique function, we can sort out the unique records within the original dataset. The new dataset's dimension has 768 unique rows which has the same number of records with our original dataset. Both contain 768 rows. Thus, we come to the conclusion that there is no duplicate value.
+</br>
+Then we perform testing on the outliers of each variable.
+```{r echo=FALSE}
+a <- ggplot(data, aes(x= Outcome, y= Pregnancies, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+b<- ggplot(data, aes(x= Outcome, y= Glucose, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+c<- ggplot(data, aes(x= Outcome, y= BloodPressure , fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+d<- ggplot(data, aes(x= Outcome, y= SkinThickness , fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+e<- ggplot(data, aes(x= Outcome, y= Insulin, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+f<- ggplot(data, aes(x= Outcome, y= BMI, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+g<- ggplot(data, aes(x= Outcome, y= DiabetesPedigreeFunction, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom")
+h<- ggplot(data, aes(x= Outcome, y= Age, fill = factor(Outcome))) + geom_boxplot() + theme(legend.position = "bottom") 
+grid.arrange(a,b,c,d,e,f,g,h, ncol=4)
+```
+
+
+We can see that women in non diabetes group (outcome =0) have fewer number of pregnancies compared to those who are in the diabetes group. The distribuition of pregnant women in non diabetes group is skew to the right. The diabetic women appear to have higher glucose concentrations. The two group have quite similar blood pressure measurement. There are many outliers in Insulin from both groups, especially women with diabetes are heavily skewed to the right. The diabetic women have slightly higher BMI than the other group.The pedigree function distribution in both groups have outliers and have positive skew.The average age of women in diabetic group seem older than women in non diabetic group. 
+Let's take a closer look into those variables which has outliers:
+In reality, living organisms can't have zero value for their *Blood Pressure*. We will check if there how many rows that contains 0 value in Blood Pressure.
+```{r echo=FALSE}
+sum(data$BloodPressure==0)
+```
+With fasting *Glucose* levels would not be as low as zero. Therefore zero is an invalid reading. We will check if there how many rows that contains 0 value in Glucose.
+```{r echo=FALSE}
+sum(data$Glucose==0)
+```
+For normal people, *Skin Fold Thickness* can’t be less than 10 mm better yet zero. We will check if there how many rows that contains 0 value.
+```{r echo=FALSE}
+sum(data$SkinThickness==0)
+```
+So a fasting *Insulin* level should never be 0, which it might be in a person with untreated Type 1. It shouldn’t go below 3. We will check if there how many rows that contains 0 value.
+```{r echo=FALSE}
+sum(data$Insulin==0)
+```
+*BMI* can't be or close to 0 cause it is not reality related. We will check if there how many rows that contains 0 value.
+```{r echo=FALSE}
+sum(data$BMI==0)
+```
+</br>
+With the domain knowledge checking, we found invalid values in some columns. We conclude that the given data set is imcomplete. This leads to our group decision to use imputation to make the dataset more relevant and reasonable. 
+In order to proceed this goal, We will replace the rows contained zero value in Blood Pressure, Glucose, Skin Fold Thickness, Insulin and BMI variables with the *median value* which is the midpoint of a frequency distribution of observed values. We did not choose mean because it won't reflect the reality in observation. 
+```{r Check for incorrect values and replace with relevant values, echo=FALSE}
+# People with no diabetes an zero blood pressure values
+non_diabetic <- which(data$BloodPressure==0 & data$Outcome==0)
+temp_median <- median(data$BloodPressure[!data$BloodPressure==0 & data$Outcome==0])
+data$BloodPressure[non_diabetic] <- temp_median
+
+# People with diabetes an zero blood pressure values
+diabetic <- which(data$BloodPressure==0 & data$Outcome==1)
+data$BloodPressure[diabetic] <- median(data$BloodPressure[!data$BloodPressure==0 & data$Outcome==1])
+
+# People with no diabetes an zero Glucose values
+non_diabetic <- which(data$Glucose==0 & data$Outcome==0)
+data$Glucose[non_diabetic] <- median(data$Glucose[!data$Glucose==0 & data$Outcome==0])
+
+# People with diabetes an zero Glucose values
+diabetic <- which(data$Glucose==0 & data$Outcome==1)
+data$Glucose[diabetic] <- median(data$Glucose[!data$Glucose==0 & data$Outcome==1])
+
+# People with no diabetes an zero Skin Thickness values
+non_diabetic <- which(data$SkinThickness==0 & data$Outcome==0)
+data$SkinThickness[non_diabetic] <- median(data$SkinThickness[!data$SkinThickness==0 & data$Outcome==0])
+
+# People with diabetes an zero Skin Thickness values
+diabetic <- which(data$SkinThickness==0 & data$Outcome==1)
+data$SkinThickness[diabetic] <- median(data$SkinThickness[!data$SkinThickness==0 & data$Outcome==1])
+
+# People with no diabetes an zero Insulin values
+non_diabetic <- which(data$Insulin==0 & data$Outcome==0)
+data$Insulin[non_diabetic] <- median(data$Insulin[!data$Insulin==0 & data$Outcome==0])
+
+# People with diabetes an zero Insulin values
+diabetic <- which(data$Insulin==0 & data$Outcome==1)
+data$Insulin[diabetic] <- median(data$Insulin[!data$Insulin==0 & data$Outcome==1])
+
+# People with no diabetes an zero BMI values
+non_diabetic <- which(data$BMI==0 & data$Outcome==0)
+data$BMI[non_diabetic] <- median(data$BMI[!data$BMI==0 & data$Outcome==0])
+
+# People with diabetes an zero BMI values
+diabetic <- which(data$BMI==0 & data$Outcome==1)
+data$BMI[diabetic] <- median(data$BMI[!data$BMI==0 & data$Outcome==1])
+```
+```{r echo=FALSE}
+summary(data)
+```
+
+  
+## Exploratory Data Analysis
+### Check correlation between the variables 
+```{r echo=FALSE}
+pairs(data,pch=20)
+corrplot(cor(data[,-10]),type = "lower", method="number")
+ggplot(gather(data[,-9]),aes(value)) + geom_histogram() + facet_wrap(key~.,scales="free_x")
+```
+
+By looking at the scatterplot mattrices, we can make an assumption that the data's dots in Skin Thickness might have correlation with BMI. The coefficient in the correlation plot shows 0.57 between BMI and Skin Thickness which means there is a moderate positive relationship. It also shows correlation coefficient of 0.54 between Age and Pregnancies and 0.49 between Insulin and Glucose. These coefficients measure the strength and direction of a linear relationship between two variables. However,these coefficients from the scatterplot are not strong enough to assure that there are a significant relationship among the covariates. So we can do further analysis without dropping any columns.
+
+Also, from the ggplot function we can visualize the distribution in each reagressor. Blood Pressure and BMI plotS seems to follow a normal distribution. Pregnancies, Age, Insulin and Diebetes Pedigree Function are skewed to the right.
+
+## Variable Selection and Final Model 
+
+
+#### Variables selection is done using P-value, AIC (Akaike Information Criterion), BIC(Bayesian Information Criterion)
+
+```{r include=FALSE}
+# Building model with all variables
+modelall = glm(Outcome ~ .,data,family="binomial")
+summary(modelall)
+```
+
+### Model based on P-value
+
+```{r}
+# Selecting significant variables based on p-value
+model1 = glm(Outcome ~ .-BloodPressure-Age,data,family="binomial")
+summary(model1)
+```
+
+### Plotting BIC 
+```{r include=FALSE}
+
+subset_result <- regsubsets(Outcome~.,data, nbest=2, nvmax = 14)
+summary(subset_result)
+
+```
+```{r}
+plot(subset_result, scale="bic")
+
+```
+
+Based on BIC graph, we should not include BloodPressure, SkinThickness and Age in our model and proceed with building a new model.
+
+### Model based on BIC
+```{r}
+# Model based on BIC
+model2 = glm(Outcome~.-BloodPressure-SkinThickness-Age,data=data,family="binomial")
+summary(model2)
+```
+
+
+Here we, will run backward regression to get another model.
+
+```{r include=FALSE}
+fullmodel=lm(Outcome~., data=data)
+model_step_b <- step(fullmodel,direction='backward')
+
+```
+
+### Model after running backward selection
+```{r}
+# Variables based on least AIC
+model3 = glm(Outcome ~ Pregnancies + Glucose + SkinThickness + Insulin + BMI + 
+               DiabetesPedigreeFunction,data,family="binomial")
+summary(model3)
+```
+
+After running the three different models, we came up with the following AIC values:
+
+*Model 1*: 704.52
+*Model 2*: 710.58
+*Model 3*: 704.52
+
+Model 1 and Model 3 returned the same set of variables with least AIC. Hence, selecting only those variables as that would yield an efficient model.
+
+### Final model based on least AIC amongst the above three model.
+```{r}
+final_model = glm(Outcome ~ .-BloodPressure-Age,data,family="binomial")
+summary(final_model)
+```
+
+
+As we interpret estimated coefficent of our significant covariates, we come up with the conclusion that when a person have pregnancy, increasing Glucose, Insulin, BMI,DiabetesPedigreeFunction  and Skin Thickness will likely have diabetes.
+
+The model will look like:
+
+Outcome = -9.22 + 0.13* Pregnancies + 0.03* Glucose + 0.04* SkinThickness + 0.005* Insulin + 0.05* BMI + 0.80*DiabetesPedigreeFunction
+
+
+
+```{r include=FALSE}
+#To evaluate the prediction performance on all the observed data
+d = data
+pred_prob = predict(final_model, data, type = "response")
+pred_value = 1*(pred_prob>0.5)
+c=cbind(d, pred_prob, pred_value)
+```
+
+
+```{r include=FALSE}
+#We can obtain the confusion matrix as follows.
+actual_value=d$Outcome
+confusion_matrix=table(actual_value,pred_value)
+confusion_matrix
+```
+
+
+
+```{r include=FALSE}
+# We can further obtain the misclassification error rate as follows.
+misclassification_error_rate=1-sum(diag(confusion_matrix))/sum(confusion_matrix)
+misclassification_error_rate
+```
+
+
+```{r include=FALSE}
+# To check if 0.5 is a good p-cut value.
+# define a cost function with input "obs" being observed response 
+# and "pi" being predicted probability, and "pcut" being the threshold.
+costfunc = function(obs, pred.p, pcut){
+    weight1 = 1   # define the weight for "true=1 but pred=0" (FN)
+    weight0 = 1    # define the weight for "true=0 but pred=1" (FP)
+    c1 = (obs==1)&(pred.p<pcut)    # count for "true=1 but pred=0"   (FN)
+    c0 = (obs==0)&(pred.p>=pcut)   # count for "true=0 but pred=1"   (FP)
+    cost = mean(weight1*c1 + weight0*c0)  # misclassification with weight
+    return(cost) # you have to return to a value when you write R functions
+} # end of the function
+
+# define a sequence from 0.01 to 1 by 0.01
+p.seq = seq(0.01, 1, 0.01) 
+
+mean_error = rep(0, length(p.seq))  
+for(i in 1:length(p.seq)){ 
+    mean_error[i] = costfunc(obs = d$Outcome, pred.p = pred_prob, pcut = p.seq[i])  
+} # end of the loop
+
+
+```
+
+
+Finding optimum P-cut with least error
+```{r}
+# draw a plot with X axis being all pcut and Y axis being associated cost
+plot(p.seq, mean_error)
+```
+
+
+```{r include=FALSE}
+# Let’s confirm when p-cut is 0.5, we get the previous mean error:
+mean_error[which(p.seq==0.5)]
+```
+
+What’s the best p-cut and lowest mean error we can get?
+```{r}
+optimal.pcut = p.seq[which(mean_error==min(mean_error))]
+optimal.pcut
+min(mean_error)
+```
+
+Thus, let's use 0.35 as new p-cut value and check the misclassification error.
+```{r include=FALSE}
+pred_prob = predict(final_model, d, type = "response")
+pred_value = 1*(pred_prob>0.35)
+c=cbind(d, pred_prob, pred_value)
+```
+
+
+```{r}
+actual_value=d$Outcome
+confusion_matrix=table(actual_value,pred_value)
+confusion_matrix
+```
+
+```{r}
+misclassification_error_rate=1-sum(diag(confusion_matrix))/sum(confusion_matrix)
+misclassification_error_rate
+```
+
+
+The final model will look like:
+
+Outcome = -9.22 + 0.13* Pregnancies + 0.03* Glucose + 0.04* SkinThickness + 0.005* Insulin + 0.05* BMI + 0.80*DiabetesPedigreeFunction and we use p-cut of 0.35 which gives the misclassification error rate of 0.2005.
+
+
+## Residual Analysis
+
+
+Let's do the residual analysis to check if our assumptions are met.
+
+
+```{r echo=FALSE}
+data1 = read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+final_model = glm(Outcome ~ .-BloodPressure-Age,data1,family="binomial")
+par(mfrow=c(1,2))
+qqnorm(final_model$residuals,main="model1")
+qqline(final_model$residuals)
+
+plot(final_model$fitted.values,final_model$residuals,pch=20)
+abline(h=0,col="grey")
+```
+
+As we can see, it's violating our assumptions of Normality and Equal variance.
+
+
+```{r include=FALSE}
+# Let's do some transformations to meet these assumptions.
+data1 = read.csv("C:/Users/Radhika Sood/Desktop/R datasets/diabetes-dataset/diabetes2.csv", stringsAsFactors = FALSE, header = TRUE)
+final_model = glm(Outcome ~ sqrt(Pregnancies+Glucose+SkinThickness+Insulin+BMI+DiabetesPedigreeFunction),data1,family="binomial")
+```
+
+Residual plot after applying SQRT transformation on independent variables.
+
+```{r echo=FALSE}
+par(mfrow=c(1,2))
+# generate QQ plot
+qqnorm(final_model$residuals,main="model1")
+qqline(final_model$residuals)
+
+plot(final_model$fitted.values,final_model$residuals,pch=20)
+abline(h=0,col="grey")
+```
+
+As we can see in the above plots, the assumption of equal variance is met. Though the Normality assumption is not completely met, we still proceed further for model validation as we have huge number of observations which would compensate for non normality.
+
+
+## Model Validation
+### Splitting of data
+```{r}
+split_data = sample(nrow(data),nrow(data)*0.80)
+diab.train = data[split_data,]
+diab.test =  data[-split_data,]
+
+nrow(data)
+nrow(diab.train)
+nrow(diab.test)
+```
+We are randomly splitting the data to be used as training(80%) and testing(20%) datasets.
+
+### Train a logistic regression model with all X variables
+
+```{r}
+final_model <- glm(Outcome ~ sqrt(Pregnancies+Glucose+SkinThickness+Insulin+BMI+DiabetesPedigreeFunction), family=binomial, data = diab.train)
+summary(final_model)
+```
+we create a logistic regression model that involved 6 out of 8 variables against the outcome.
+
+### We use type=response to predict the probability of each training observation
+
+```{r}
+hist(predict(final_model,type="response"))
+```
+The distribution in probability is plotted over here. With this histogram we can see the largest probability and the smallest predicted probability. 
+
+### In-sample prediction - i.e. the training data
+```{r}
+pred.diab.train <- predict(final_model,type="response")
+```
+
+We can get the predicted probability for each of the values in the training dataset.
+
+
+### Use ROC to give a an overall measure of goodness of classification and calculate AUC as well
+ROC (Receiver operating characteristic) - predicting the probability of a binary outcome.
+
+AUC -> This the area under the ROC curve.
+```{r echo=FALSE}
+pred <- prediction(pred.diab.train,diab.train$Outcome)
+perf <- performance(pred,"tpr","fpr")
+plot(perf,colorize=TRUE,print.cutoffs.at=seq(0,1,0.1),text.adj=c(-0.2,1.7))
+abline(a=0,b=1)
+auc_in <- unlist(slot(performance(pred,"auc"),"y.values"))
+legend(.8,.2,auc_in, title = "AUC",cex=0.5)
+
+```
+
+ROC curve plots the true positive rate(TPR) and false positive rate(FPR) that is calculated from the confusion matrix at various threshold settings. We can see that the curve is really close to the top left corner which is just a way of saying that the model's accuracy is good. 
+
+From this ROC curve we can see that the model is better at discriminating between positives and 
+negatives in general.From the above graph it is inferred that AUC gives an accuracy rate of approx 88%.
+
+AUC metric ranges from 0.50 to 1.00 and more closer the AUC is to 1.00, more it indicates that the model does a good job in discriminating between the two categories which comprises our target variable - Outcome.
+
+### Out-of-Sample Prediction
+
+Now we make our predictions on the test data
+
+```{r}
+pred.diab.test <- predict(final_model,newdata = diab.test, type="response")
+#Convert probabilities to values
+test_tab <- table(diab.test$Outcome,pred.diab.test > 0.5)
+test_tab
+```
+```{r}
+accuracy_test <- round(sum(diag(test_tab))/sum(test_tab),2)
+accuracy_test
+
+```
+
+We see that the above output gives us an accuracy rate of 73%. We can further improve the performance of this model.
+
+
+###Plot ROC Curve with the test data
+
+```{r}
+pred2 <- prediction(pred.diab.test,diab.test$Outcome)
+perf <- performance(pred,"tpr","fpr")
+plot(perf,colorize=TRUE,print.cutoffs.at=seq(0,1,0.1),text.adj=c(-0.2,1.7))
+abline(a=0,b=1)
+auc_out <- round (unlist(slot(performance(pred,"auc"),"y.values")),2)
+legend(.8,.2,auc_out,title="AUC",cex= 0.5)
+
+```
+
+Now, we can see here that the curve generated by the test data is equal to the curve generated by the training data. Overfitting is a situation where the training data provides a model accuracy greater than the test data. But with our model, we achieve very good accuracy at 88%.
+
+So we can say that the prediction is reliable enough to identify whether a person is affected by diabetes or not when its fed a set of variables.
+
+
+###Cross Validation
+Now we are gonna perform cross validation which is another approach to manipulation of training and test data.
+
+This is a 5 fold cross validation where the dataset is divided into 5 parts and each part serves as the test set and the rest of them serve as training set.
+
+```{r}
+cv.glm(data=diab.train,glmfit = final_model,K=5)$delta[2]
+
+```
+
+We get a low error rate of 14% which is good for a model.We try another variant of cross validation to make sure that the final model is perfect to predict diabetes.
+
+### Leave one out cross validation (LOOCV)
+
+LOOCV is the type of cross validation where one record is used as test set and the rest is used as training set. 
+```{r}
+cv.glm(data = diab.train, glmfit = final_model, K = nrow(diab.train))$delta[2]
+```
+
+The overall error estimate on the final model is 14%. Thus this model can be used to reliably predict whether a person gets affected with diabetes or not. 
+
+### Model Accuracy
+
+The Model has an accuracy of 88% on both training and testing data.
+
